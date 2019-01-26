@@ -1,5 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
 
 namespace HandWrite
 {
@@ -51,6 +55,96 @@ namespace HandWrite
                 refNode.Next.Value.Reluize();
                 refNode = refNode.Next;
                 weightMatrixIndex++;
+            }
+        }
+
+        public void DeSerialize(string filename)
+        {
+            if (!File.Exists(filename)) throw new FileNotFoundException("Deserialize file not found", filename);
+            WeightMatrices = new List<Matrix<double>>();
+            LinkedList<Layer> Layers = new LinkedList<Layer>();
+            var allLines = File.ReadAllLines(filename);
+            int rows = 0;
+            int cols = 0;
+            var weightMatrixActive = true;
+            var firstLayerSize = 0;
+            var activeRowNo = 0;
+            for (int i = 0; i < allLines.Length; i++)
+            {
+                var line = allLines[i];
+                if (line.Trim() == "") break;
+                if (line.StartsWith("w") || line.StartsWith("b"))
+                {
+                    activeRowNo = 0;
+                    var matrixRc = line.Replace("w", "").Replace("b", "").Split(new char[] { 'x' }, StringSplitOptions.RemoveEmptyEntries);
+                    rows = int.Parse(matrixRc[0]);
+                    cols = int.Parse(matrixRc[1]);
+                    weightMatrixActive = line.StartsWith("w");
+                    if (weightMatrixActive)
+                    {
+                        WeightMatrices.Add(new DenseMatrix(rows, cols));
+                        if (firstLayerSize == 0)
+                        {
+                            firstLayerSize = cols;
+                            Layers.AddFirst(new Layer(firstLayerSize));
+                        }
+                    }
+                    else
+                    {
+                        Layers.AddLast(new Layer(rows));
+                    }
+                    continue;
+                }
+                if (weightMatrixActive)
+                {
+                    var weightMatrix = WeightMatrices.Last();
+                    var vals = line.Split(new char[] { ' ' });
+                    for (int j = 0; j < weightMatrix.ColumnCount; j++)
+                    {
+                        weightMatrix[activeRowNo, j] = double.Parse(vals[j]);
+                    }
+                }
+                else//bias matrix
+                {
+                    var vals = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    Layers.Last.Value.Neurons[activeRowNo].Bias = double.Parse(vals[0]);
+                }
+                activeRowNo++;
+            }
+        }
+
+        public void Serialize(string filename)
+        {
+            if (File.Exists(filename)) File.Delete(filename);
+
+            foreach (var weightMatrix in WeightMatrices)
+            {
+                File.AppendAllText(filename, "w" + weightMatrix.RowCount.ToString() + "x" + weightMatrix.ColumnCount.ToString());
+                File.AppendAllText(filename, Environment.NewLine);
+                foreach (var row in weightMatrix.EnumerateRows())
+                {
+                    for (int i = 0; i < weightMatrix.ColumnCount; i++)
+                    {
+                        File.AppendAllText(filename, row[i].ToString() + " ");
+                    }
+                    File.AppendAllText(filename, Environment.NewLine);
+                }
+            }
+            var layerNo = 0;
+            foreach (var layer in Layers)
+            {
+                layerNo++;
+                if (layerNo == 1) continue;
+                File.AppendAllText(filename, "b" + layer.BiasMatrix.RowCount.ToString() + "x" + layer.BiasMatrix.ColumnCount.ToString());
+                File.AppendAllText(filename, Environment.NewLine);
+                foreach (var row in layer.BiasMatrix.EnumerateRows())
+                {
+                    for (int i = 0; i < layer.BiasMatrix.ColumnCount; i++)
+                    {
+                        File.AppendAllText(filename, row[i].ToString() + " ");
+                    }
+                    File.AppendAllText(filename, Environment.NewLine);
+                }
             }
         }
 
