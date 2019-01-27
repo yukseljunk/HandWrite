@@ -46,7 +46,7 @@ namespace HandWrite
                 var errorRate = Train(network, image, label, ErrFunction);
                 sumErrorRate += errorRate;
                 Console.WriteLine("Img Index: {2}, Label: {3},Err: {0}, AvgErr: {1}", errorRate, sumErrorRate / (double)imageIndexor, imageIndexor, label);
-                if (imageIndexor == 10) break;
+                //if (imageIndexor == 1000) break;
 
             }
             Console.ReadKey();
@@ -81,7 +81,7 @@ namespace HandWrite
                 {
                     for (int j = 0; j < weightMatrix.ColumnCount; j++)
                     {
-                        weightMatrix[i, j] = Math.Round(random.NextDouble(-9.99, 9.99), 4);
+                        weightMatrix[i, j] = Math.Round(RandomGaussian(random) * 10, 4);
                     }
                 }
             }
@@ -92,10 +92,19 @@ namespace HandWrite
                 if (layerNo == 1) continue;
                 foreach (var neuron in layer.Neurons)
                 {
-                    neuron.Bias = Math.Round(random.NextDouble(-9.99, 9.99), 4);
+                    neuron.Bias = Math.Round(RandomGaussian(random) * 10, 4);
                 }
             }
 
+        }
+
+        static double RandomGaussian(Random rand, double mean = 0.0, double stdDev = 1.0)
+        {
+            double u1 = 1.0 - rand.NextDouble(); //uniform(0,1] random doubles
+            double u2 = 1.0 - rand.NextDouble();
+            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *
+                         Math.Sin(2.0 * Math.PI * u2); //random normal(0,1)
+            return mean + stdDev * randStdNormal; //random normal(mean,stdDev^2)
         }
 
         static double Train(Network network, MathNet.Numerics.LinearAlgebra.Matrix<double> inputActivationValues, int expectedResult, Func<Matrix<double>, int, double> errorFunction)
