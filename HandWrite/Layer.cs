@@ -44,6 +44,27 @@ namespace HandWrite
                 }
             }
         }
+
+        public override bool Equals(object obj)
+        {
+            var other = (Layer)obj;
+            if (other.Neurons.Count != this.Neurons.Count) return false;
+            for (int i = 0; i < Neurons.Count; i++)
+            {
+                if (!other.Neurons[i].Equals(Neurons[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public override int GetHashCode()
+        {
+            if (Neurons.Count == 0) return 0;
+            return Neurons.Sum(n => n.GetHashCode()) / Neurons.Count;
+        }
+
         public Matrix<double> BiasMatrix
         {
             get

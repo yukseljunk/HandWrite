@@ -12,9 +12,11 @@ namespace HandWrite
             var network = new Network(new List<int>() { 28 * 28, 16, 16, 10 });
             FillWeightsAndBalancesRandomly(network);
 
-            /*network.Serialize(@"c:\temp\serializedmatrix.txt");
-            network.DeSerialize(@"c:\temp\serializedmatrix.txt");
-            */
+            network.Serialize(@"c:\temp\serializedmatrix.txt");
+
+            //var network2 = new Network(new List<int>());
+            //network2.DeSerialize(@"c:\temp\serializedmatrix.txt");
+            //Console.WriteLine(network.Equals(network2));
 
             var fileTemplate = @"C:\temp\hwinput\input{0}.txt";
             bool writeInputToFile = false;
@@ -43,7 +45,8 @@ namespace HandWrite
                 }
                 var errorRate = Train(network, image, label, ErrFunction);
                 sumErrorRate += errorRate;
-                Console.WriteLine("Img Index: {2},Err: {0}, AvgErr: {1}", errorRate, sumErrorRate / (double)imageIndexor, imageIndexor);
+                Console.WriteLine("Img Index: {2}, Label: {3},Err: {0}, AvgErr: {1}", errorRate, sumErrorRate / (double)imageIndexor, imageIndexor, label);
+                if (imageIndexor == 10) break;
 
             }
             Console.ReadKey();
@@ -78,7 +81,7 @@ namespace HandWrite
                 {
                     for (int j = 0; j < weightMatrix.ColumnCount; j++)
                     {
-                        weightMatrix[i, j] = random.NextDouble(-9.99, 9.99);
+                        weightMatrix[i, j] = Math.Round(random.NextDouble(-9.99, 9.99), 4);
                     }
                 }
             }
@@ -89,7 +92,7 @@ namespace HandWrite
                 if (layerNo == 1) continue;
                 foreach (var neuron in layer.Neurons)
                 {
-                    neuron.Bias = random.NextDouble(-9.99, 9.99);
+                    neuron.Bias = Math.Round(random.NextDouble(-9.99, 9.99), 4);
                 }
             }
 

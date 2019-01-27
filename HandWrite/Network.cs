@@ -58,11 +58,48 @@ namespace HandWrite
             }
         }
 
+        public override bool Equals(object obj)
+        {
+            var other = (Network)obj;
+            if (this.WeightMatrices.Count != other.WeightMatrices.Count) return false;
+            for (int i = 0; i < WeightMatrices.Count; i++)
+            {
+                if (WeightMatrices[i].Equals(other.WeightMatrices[i]))
+                {
+                    return false;
+                }
+            }
+            if (this.Layers.Count != other.Layers.Count) return false;
+            for (int i = 0; i < Layers.Count; i++)
+            {
+                if (!Layers.ToList()[i].Equals(other.Layers.ToList()[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        public override int GetHashCode()
+        {
+            int layerAvg = 1;
+            if (Layers.Any())
+            {
+                layerAvg = Layers.ToList().Sum(l => l.GetHashCode()) / Layers.Count;
+            }
+
+            int weightSumAvg = 1;
+            if (WeightMatrices.Any())
+            {
+                weightSumAvg = WeightMatrices.Sum(w => w.GetHashCode()) / WeightMatrices.Count;
+            }
+            return layerAvg * weightSumAvg;
+        }
+
         public void DeSerialize(string filename)
         {
             if (!File.Exists(filename)) throw new FileNotFoundException("Deserialize file not found", filename);
             WeightMatrices = new List<Matrix<double>>();
-            LinkedList<Layer> Layers = new LinkedList<Layer>();
+            var layers = new LinkedList<Layer>();
             var allLines = File.ReadAllLines(filename);
             int rows = 0;
             int cols = 0;
@@ -86,12 +123,14 @@ namespace HandWrite
                         if (firstLayerSize == 0)
                         {
                             firstLayerSize = cols;
-                            Layers.AddFirst(new Layer(firstLayerSize));
+                            layers.AddFirst(new Layer(firstLayerSize));
+                            LayerSizes.Add(firstLayerSize);
                         }
                     }
                     else
                     {
-                        Layers.AddLast(new Layer(rows));
+                        layers.AddLast(new Layer(rows));
+                        LayerSizes.Add(rows);
                     }
                     continue;
                 }
@@ -107,10 +146,11 @@ namespace HandWrite
                 else//bias matrix
                 {
                     var vals = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    Layers.Last.Value.Neurons[activeRowNo].Bias = double.Parse(vals[0]);
+                    layers.Last.Value.Neurons[activeRowNo].Bias = double.Parse(vals[0]);
                 }
                 activeRowNo++;
             }
+            Layers = layers;
         }
 
         public void Serialize(string filename)
