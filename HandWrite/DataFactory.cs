@@ -39,17 +39,86 @@ namespace HandWrite
             }
         }
 
+        public IEnumerable<IList<Tuple<DenseMatrix, int>>> TrainingData(int batchSize)
+        {
+            var result = new List<Tuple<DenseMatrix, int>>();
+            var trainingDataFilePath = GetFilePath(TrainingDataFile);
+            var bytes = File.ReadAllBytes(trainingDataFilePath);
+
+            int rowcount;
+            int columnCount;
+            var imageCount = GetMetadata(bytes, out rowcount, out columnCount);
+            bytes = bytes.Skip(16).ToArray();//16 bits header
+            var trainingLabelFilePath = GetFilePath(TrainingLabelsFile);
+            var labelBytes = File.ReadAllBytes(trainingLabelFilePath).Skip(8).ToArray();//8 bits header
+
+            var imgList = Enumerable.Range(0, imageCount);
+            //shuffle
+            imgList = imgList.OrderBy(a => Guid.NewGuid());
+            var batchIndexor = 0;
+            foreach (var index in imgList)
+            {
+                batchIndexor++;
+                var labelByte = labelBytes.Skip(index).Take(1).ToList()[0];
+                var lb = (int)labelByte;
+                var imageBytes = bytes.Skip(rowcount * columnCount * index).Take(rowcount * columnCount).ToList();
+                var oneImage = new DenseMatrix(rowcount, columnCount);
+
+                for (int j = 0; j < imageBytes.Count; j++)
+                {
+                    var rowIndex = j / rowcount;
+                    var colIndex = j % columnCount;
+                    oneImage[rowIndex, colIndex] = Math.Round((double)imageBytes[j] / 255, 4);
+                }
+                result.Add(new Tuple<DenseMatrix, int>(oneImage, lb));
+                if (batchIndexor == batchSize)
+                {
+                    batchIndexor = 0;
+                    yield return result;
+                    result.Clear();
+                }
+            }
+
+        }
 
 
-        public IEnumerable<Tuple<DenseMatrix,int>> TrainingData()
+
+        public IEnumerable<Tuple<DenseMatrix, int>> TrainingData()
         {
             var trainingDataFilePath = GetFilePath(TrainingDataFile);
             var bytes = File.ReadAllBytes(trainingDataFilePath);
 
+            int rowcount;
+            int columnCount;
+            var imageCount = GetMetadata(bytes, out rowcount, out columnCount);
+            bytes = bytes.Skip(16).ToArray();//16 bits header
             var trainingLabelFilePath = GetFilePath(TrainingLabelsFile);
-            var labelBytes = File.ReadAllBytes(trainingLabelFilePath);
+            var labelBytes = File.ReadAllBytes(trainingLabelFilePath).Skip(8).ToArray();//8 bits header
 
+            var imgList = Enumerable.Range(0, imageCount);
+            //shuffle
+            imgList = imgList.OrderBy(a => Guid.NewGuid());
 
+            foreach (var index in imgList)
+            {
+                var labelByte = labelBytes.Skip(index).Take(1).ToList()[0];
+                var lb = (int)labelByte;
+                var imageBytes = bytes.Skip(rowcount * columnCount * index).Take(rowcount * columnCount).ToList();
+                var oneImage = new DenseMatrix(rowcount, columnCount);
+
+                for (int j = 0; j < imageBytes.Count; j++)
+                {
+                    var rowIndex = j / rowcount;
+                    var colIndex = j % columnCount;
+                    oneImage[rowIndex, colIndex] = Math.Round((double)imageBytes[j] / 255, 4);
+                }
+                yield return new Tuple<DenseMatrix, int>(oneImage, lb);
+            }
+
+        }
+
+        private static int GetMetadata(byte[] bytes, out int rowcount, out int columnCount)
+        {
             var icBytes = new byte[] { bytes[4], bytes[5], bytes[6], bytes[7] };
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(icBytes);
@@ -59,28 +128,13 @@ namespace HandWrite
             var rcBytes = new byte[] { bytes[8], bytes[9], bytes[10], bytes[11] };
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(rcBytes);
-            var rc = BitConverter.ToInt32(rcBytes, 0);
+            rowcount = BitConverter.ToInt32(rcBytes, 0);
+
             var ccBytes = new byte[] { bytes[12], bytes[13], bytes[14], bytes[15] };
             if (BitConverter.IsLittleEndian)
                 Array.Reverse(ccBytes);
-            var cc = BitConverter.ToInt32(ccBytes, 0);
-
-            for (int i = 0; i < ic; i++)
-            {
-                var labelByte = labelBytes.Skip(8 + i).Take(1).ToList()[0];
-                var lb = (int)labelByte;
-                var imageBytes = bytes.Skip(16 + rc * cc * i).Take(rc * cc).ToList();
-                var oneImage = new DenseMatrix(rc, cc);
-
-                for (int j = 0; j < imageBytes.Count; j++)
-                {
-                    var rowIndex = j / rc;
-                    var colIndex = j % cc;
-                    oneImage[rowIndex, colIndex]= Math.Round( (double)imageBytes[j] / 255,4);
-                }
-                yield return new Tuple<DenseMatrix, int>(oneImage, lb);
-            }
-
+            columnCount = BitConverter.ToInt32(ccBytes, 0);
+            return ic;
         }
 
         private string GetFilePath(string relPath)

@@ -9,10 +9,14 @@ namespace HandWrite
     {
         static void Main(string[] args)
         {
+
             var network = new Network(new List<int>() { 28 * 28, 16, 16, 10 });
             FillWeightsAndBalancesRandomly(network);
 
-            network.Serialize(@"c:\temp\serializedmatrix.txt");
+            var miniBatchSize = 10;
+            var epochCount = 3;
+
+            // network.Serialize(@"c:\temp\serializedmatrix.txt");
 
             //var network2 = new Network(new List<int>());
             //network2.DeSerialize(@"c:\temp\serializedmatrix.txt");
@@ -20,35 +24,49 @@ namespace HandWrite
 
             var fileTemplate = @"C:\temp\hwinput\input{0}.txt";
             bool writeInputToFile = false;
-            var dataFactory = new DataFactory();
-            var imageIndexor = 0;
-            double sumErrorRate = 0.0;
-            foreach (var denseMatrix in dataFactory.TrainingData())
+
+            for (int k = 1; k <= epochCount; k++)
             {
-                var file = string.Format(fileTemplate, imageIndexor);
-                imageIndexor++;
-                var image = denseMatrix.Item1;
-                var label = denseMatrix.Item2;
+                Console.WriteLine("Epoch " + k);
 
-                //Console.WriteLine(label);
-                if (writeInputToFile)
+                var dataFactory = new DataFactory();
+                double sumErrorRate = 0.0;
+                var imageIndexor = 0;
+
+                foreach (var batch in dataFactory.TrainingData(miniBatchSize))
                 {
-                    for (int i = 0; i < 28; i++)
+                    foreach (var denseMatrix in batch)
                     {
-                        for (int j = 0; j < 28; j++)
+                        var image = denseMatrix.Item1;
+                        var label = denseMatrix.Item2;
+                        imageIndexor++;
+                        var file = string.Format(fileTemplate, imageIndexor);
+                        if (writeInputToFile)
                         {
-                            File.AppendAllText(file, image[i, j].ToString());
-                            File.AppendAllText(file, new string(' ', 6 - image[i, j].ToString().Length));
+                            for (int i = 0; i < 28; i++)
+                            {
+                                for (int j = 0; j < 28; j++)
+                                {
+                                    File.AppendAllText(file, image[i, j].ToString());
+                                    File.AppendAllText(file, new string(' ', 6 - image[i, j].ToString().Length));
+                                }
+                                File.AppendAllText(file, Environment.NewLine);
+                            }
                         }
-                        File.AppendAllText(file, Environment.NewLine);
-                    }
-                }
-                var errorRate = Train(network, image, label, ErrFunction);
-                sumErrorRate += errorRate;
-                Console.WriteLine("Img Index: {2}, Label: {3},Err: {0}, AvgErr: {1}", errorRate, sumErrorRate / (double)imageIndexor, imageIndexor, label);
-                //if (imageIndexor == 1000) break;
 
+                        var errorRate = Train(network, image, label, ErrFunction);
+                        sumErrorRate += errorRate;
+                        Console.WriteLine("Img Index: {2}, Label: {3},Err: {0}, AvgErr: {1}", errorRate,
+                                          sumErrorRate / (double)imageIndexor, imageIndexor, label);
+
+                        if (imageIndexor == 100) break;
+                    }
+                    if (imageIndexor == 100) break;
+
+                }
             }
+
+
             Console.ReadKey();
 
         }
