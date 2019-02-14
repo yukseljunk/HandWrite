@@ -1,4 +1,5 @@
 ﻿using System;
+
 using System.Collections.Generic;
 using System.IO;
 using MathNet.Numerics.LinearAlgebra;
@@ -8,6 +9,73 @@ namespace HandWrite
     class Program
     {
         static void Main(string[] args)
+        {
+            var network = new Network(new List<int>() { 1, 1, 1 });
+            network.WeightMatrices[0][0, 0] = 3;
+            network.WeightMatrices[1][0, 0] = 2;
+
+            var layerNo = 0;
+            foreach (var layer in network.Layers)
+            {
+                layerNo++;
+                if (layerNo == 1) continue;
+                var bias = 0;
+                if (layerNo == 2) bias = 1;
+                layer.Neurons[0].Bias = bias;
+            }
+            Random random = new Random();
+            //f(x)=x;
+            var count = 100;
+            for (int i = 1; i < count; i++)
+            {
+                var y = (double)i / count;
+                network.Layers.First.Value.Neurons[0].Activation = y;
+
+                network.FeedForward();
+
+                //back-propagate
+                var alm2 = network.Layers.Last.Previous.Previous.Value.Neurons[0].Activation;
+                var alm1 = network.Layers.Last.Previous.Value.Neurons[0].Activation;
+                var al = network.Layers.Last.Value.Neurons[0].Activation;
+                var bl = network.Layers.Last.Value.Neurons[0].Bias;
+                var blm1 = network.Layers.Last.Previous.Value.Neurons[0].Bias;
+                var wl = network.WeightMatrices[1][0, 0];
+                var wlm1 = network.WeightMatrices[0][0, 0];
+
+                var zl = alm1 * wl + bl;
+                var zlm1 = alm2 * wlm1 + blm1;
+
+                if (y == al)
+                {
+
+                    var x1 = 1;
+                    var y1 = x1;
+                }
+                var cwl = 2 * (y - al) * alm1 * SigmoidDiff(zl);
+                var cbl = 2 * (y - al) * SigmoidDiff(zl);
+                var cwlm1 = 2 * (y - al) * wl * alm2 * SigmoidDiff(zl) * SigmoidDiff(zl - 1);
+                var cblm1 = 2 * (y - al) * wl * SigmoidDiff(zl) * SigmoidDiff(zl - 1);
+
+                var k = Math.Abs(RandomGaussian(random, 0.05, 0.05))/i;
+                //var k = 0.0003/(double)i;
+
+                network.Layers.Last.Value.Neurons[0].Bias = bl - k * cbl * Math.Sign(cbl)*-1;
+                network.WeightMatrices[1][0, 0] = wl - k * cwl * Math.Sign(cwl) * -1;
+                network.Layers.Last.Previous.Value.Neurons[0].Bias = blm1 - k * cblm1 * Math.Sign(cblm1) * -1;
+                network.WeightMatrices[0][0, 0] = wlm1 - k * cwlm1 * Math.Sign(cwlm1) * -1;
+
+                Console.WriteLine("Iter {0} Error {1} delta {2}", i, (y - al).ToString(), k);
+            }
+
+            Console.ReadLine();
+        }
+
+        private static double SigmoidDiff(double val)
+        {
+            return Layer.Sigmoid(val) * (1 - Layer.Sigmoid(val));
+        }
+
+        static void MainOld(string[] args)
         {
 
             var network = new Network(new List<int>() { 28 * 28, 16, 16, 10 });
